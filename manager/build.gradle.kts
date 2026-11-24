@@ -137,8 +137,8 @@ android {
         applicationId = "dev.maplesu.manager"
         minSdk = 31
         targetSdk = 37
-        versionCode = 50201
-        versionName = "5.2.1"
+        versionCode = 50202
+        versionName = "5.2.1-iqoo"
         buildConfigField("boolean", "IS_PR_BUILD", "false")
         // 5.0.5 随包构建身份：未导入 SDK 时全部为 unknown / -1，构建照常成功。
         buildConfigField("String", "ULTRA_SDK_BUILD_ID", ultraSdkJavaString(ultraSdkIdentity.buildId))
