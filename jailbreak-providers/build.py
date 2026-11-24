@@ -521,7 +521,8 @@ if __name__ == "__main__":
     output.mkdir(parents=True, exist_ok=True)
     retained = verify()
     ndk = args.ndk_dir or args.sdk / "ndk" / args.ndk
-    cmake = args.sdk / "cmake/3.22.1/bin/cmake.exe"
+    _exe = '.exe' if os.name == 'nt' else ''
+    cmake = args.sdk / f'cmake/3.22.1/bin/cmake{_exe}'
     # Packaged adapters share the Manager minimum; upstream review stays separate.
     platform = "-DANDROID_PLATFORM=android-35" if args.review else "-DANDROID_PLATFORM=android-31"
 
@@ -592,7 +593,7 @@ if __name__ == "__main__":
 
     commands = [
         [str(cmake), "-S", str(ROOT), "-B", str(output / "build"), "-G", "Ninja",
-         f"-DCMAKE_MAKE_PROGRAM={cmake.with_name('ninja.exe')}",
+         f"-DCMAKE_MAKE_PROGRAM={cmake.with_name(f'ninja{_exe}')}",
          f"-DCMAKE_TOOLCHAIN_FILE={ndk / 'build/cmake/android.toolchain.cmake'}",
          "-DANDROID_ABI=arm64-v8a", platform,
          f"-DMAPLESU_BUILD_UPSTREAM_REVIEW={'ON' if args.review else 'OFF'}",
