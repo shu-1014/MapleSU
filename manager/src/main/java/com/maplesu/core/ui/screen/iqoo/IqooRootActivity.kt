@@ -114,8 +114,9 @@ class IqooRootActivity : Activity() {
             ui.post {
                 if (result.error == null) {
                     log("")
-                    log("内核基址: " + (result.rootBase?.let { "0x" + it.toString(16) } ?: "未取得"))
-                    log("重定位模块: " + (result.relocatedKo?.absolutePath ?: "未生成"))
+                    log("内核 text: " + (result.rootBase?.let { "0x" + it.toString(16) } ?: "未取得"))
+                    log("模块已加载: " + if (result.moduleLoaded) "是（/proc/modules 可见）" else "否")
+                    log("模块文件: " + (result.relocatedKo?.absolutePath ?: "未生成"))
                     log("工作目录: " + result.workDir.absolutePath)
                     finishRun("完成")
                 } else {
