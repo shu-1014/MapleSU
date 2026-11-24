@@ -106,7 +106,7 @@ jobs:
         if: inputs.variant != 'release'
         env:
           MINGW_ROOT: ${{ steps.msys2.outputs.msys2-location }}
-        run: ./gradlew.bat :manager:assembleDebug -x buildJailbreakProviders --no-daemon --no-build-cache --no-configuration-cache --max-workers=2 '-PmaplesuRustToolchain=1.99.1-x86_64-pc-windows-gnu' "-PmaplesuMingwBin=$env:MINGW_ROOT/ucrt64/bin"
+        run: ./gradlew.bat :manager:assembleDebug -x buildJailbreakProviders -x packageJailbreakProviders --no-daemon --no-build-cache --no-configuration-cache --max-workers=2 '-PmaplesuRustToolchain=1.99.1-x86_64-pc-windows-gnu' "-PmaplesuMingwBin=$env:MINGW_ROOT/ucrt64/bin"
       - name: Build signed Manager
         if: github.event_name == 'workflow_dispatch' && inputs.variant == 'release'
         env:
@@ -132,7 +132,7 @@ jobs:
             Write-Host 'keystore: from secret'
           }
           try {
-            ./gradlew.bat :manager:assembleRelease -x buildJailbreakProviders --no-daemon --no-build-cache --no-configuration-cache --max-workers=2 '-PmaplesuRustToolchain=1.99.1-x86_64-pc-windows-gnu' '-PmaplesuMingwBin=$env:MINGW_ROOT/ucrt64/bin'
+            ./gradlew.bat :manager:assembleRelease -x buildJailbreakProviders -x packageJailbreakProviders --no-daemon --no-build-cache --no-configuration-cache --max-workers=2 '-PmaplesuRustToolchain=1.99.1-x86_64-pc-windows-gnu' '-PmaplesuMingwBin=$env:MINGW_ROOT/ucrt64/bin'
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           } finally {
             Remove-Item -LiteralPath $env:MAPLE_RELEASE_STORE_FILE -Force -ErrorAction SilentlyContinue
