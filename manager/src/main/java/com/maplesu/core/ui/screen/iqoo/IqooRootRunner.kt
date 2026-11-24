@@ -18,12 +18,14 @@ import java.util.concurrent.TimeUnit
  *   koreloc          → 按 syms.txt 把 kernelsu.ko 的未定义符号重定位到实际基址
  *   kernelsu.ko      → 提供常驻 root 通道
  *
- * 每个二进制都是独立可执行的，参数与顺序不能换：
+ * 关键约束：Android 把 /data/user/0/<pkg>/files 挂成 noexec，
+ * 即使 chmod 0755 也会在 execve 时拿到 EACCES(13)。
+ * 所以三个可执行文件必须以 lib*.so 形式随 APK 打进 jniLibs，
+ * 运行时从 applicationInfo.nativeLibraryDir 执行 —— 那里才是可执行的。
+ * syms.txt / kernelsu.ko 是纯数据，留在 assets，释放到私有目录当参数用。
+ *
  * koreloc 的用法是 `koreloc syms.txt <base_hex> in.ko out.ko`，
  * 其中 base_hex 必须是 perfleak2 / pd2055_exploit 报出来的内核基址。
- *
- * 这里只做「按顺序跑 + 抓输出」，不猜内核结构 —— 换机型或换内核版本时，
- * 只需要替换 assets/iqoo/ 下的二进制和 syms.txt，代码不用动。
  */
 class IqooRootRunner(private val context: Context) {
 
@@ -47,18 +49,20 @@ class IqooRootRunner(private val context: Context) {
     }
 
     private val workDir = File(context.filesDir, "iqoo")
-    private val assetDir = "iqoo"
+
+    /** 可执行文件所在目录（唯一允许 exec 的位置）。 */
+    private val nativeDir: File
+        get() = File(context.applicationInfo.nativeLibraryDir)
 
     /**
      * 设备判定。
      *
      * PD2055 是 vivo 的型号代码；不同固件里 model 有时带前缀，
-     * 所以 model、device、board 三个字段都看一遍。
+     * 所以 model、device、board、product 都看一遍。
      */
     fun matchDevice(): Boolean {
         val fields = listOf(
             Build.MODEL, Build.DEVICE, Build.BOARD, Build.PRODUCT,
-            runCatching { Build::class.java.getField("ODM_SKU").get(null) as String }.getOrNull().orEmpty(),
         ).joinToString(" ").lowercase()
         return fields.contains("pd2055") ||
             fields.contains("iqoo neo 5") ||
@@ -66,20 +70,28 @@ class IqooRootRunner(private val context: Context) {
             fields.contains("neo5")
     }
 
-    /** 把 assets/iqoo 下的文件释放到私有目录，并给可执行权限。 */
+    /**
+     * 释放数据文件到私有目录。
+     *
+     * 只处理 syms.txt 和 kernelsu.ko —— 可执行文件已经在 jniLibs 里，
+     * 不需要（也不能）释放到 files，因为那儿不可执行。
+     */
     fun stage(): File {
         workDir.mkdirs()
-        listOf("perfleak2", "pd2055_exploit", "koreloc", "kernelsu.ko", "syms.txt").forEach { name ->
+        listOf("syms.txt", "kernelsu.ko").forEach { name ->
             val target = File(workDir, name)
-            // 每次覆盖，避免残留旧二进制
-            context.assets.open("$assetDir/$name").use { input ->
+            context.assets.open("iqoo/$name").use { input ->
                 target.outputStream().use { output -> input.copyTo(output) }
             }
-            // 可执行文件 0755（493），数据文件 0644（420）
-            val mode = if (name.endsWith(".txt") || name.endsWith(".ko")) 420 else 493
-            runCatching { Os.chmod(target.absolutePath, mode) }
+            runCatching { Os.chmod(target.absolutePath, 420) } // 0644
         }
         return workDir
+    }
+
+    /** 取 jniLibs 里的可执行文件，并确认真的存在。 */
+    private fun binary(libName: String): File? {
+        val f = File(nativeDir, libName)
+        return if (f.isFile) f else null
     }
 
     /**
@@ -89,30 +101,47 @@ class IqooRootRunner(private val context: Context) {
      */
     fun run(onStep: (Step) -> Unit = {}): Result {
         val dir = runCatching { stage() }.getOrElse {
-            return Result(workDir, emptyList(), null, null, "释放 assets 失败: ${it.message}")
+            return Result(workDir, emptyList(), null, null, "释放数据文件失败: ${it.message}")
         }
 
         val steps = mutableListOf<Step>()
 
+        // 三个二进制缺一不可，先一次性检查，避免跑到一半才报错
+        val perfleak = binary("libperfleak2.so")
+        val exploit = binary("libpd2055_exploit.so")
+        val koreloc = binary("libkoreloc.so")
+        val missing = buildList {
+            if (perfleak == null) add("libperfleak2.so")
+            if (exploit == null) add("libpd2055_exploit.so")
+            if (koreloc == null) add("libkoreloc.so")
+        }
+        if (missing.isNotEmpty()) {
+            val step = Step("preflight", -1, "缺少可执行文件: ${missing.joinToString()}（nativeLibraryDir=${nativeDir.absolutePath}）")
+            return Result(workDir, listOf(step), null, null, step.output)
+        }
+
         // ① perfleak2：泄漏内核地址
-        val leak = exec(File(dir, "perfleak2"), emptyList(), 90)
+        val leak = exec(perfleak!!, emptyList(), dir, 90)
         steps += leak
         onStep(leak)
 
         // ② pd2055_exploit：拿 uid 0
-        val exploit = exec(File(dir, "pd2055_exploit"), emptyList(), 120)
-        steps += exploit
-        onStep(exploit)
+        val exp = exec(exploit!!, emptyList(), dir, 120)
+        steps += exp
+        onStep(exp)
 
         // 基址优先从 exploit 输出里找，找不到再退回泄漏那一步
-        val base = exploit.base ?: leak.base
+        val base = exp.base ?: leak.base
 
-        // ③ koreloc：重定位模块
-        val relocated = File(dir, "kernelsu.reloc.ko")
-        val korelocStep: Step = if (base != null) {
+        // ③ koreloc：重定位模块（参数全用绝对路径，因为工作目录是私有目录）
+        val syms = File(dir, "syms.txt")
+        val inKo = File(dir, "kernelsu.ko")
+        val outKo = File(dir, "kernelsu.reloc.ko")
+        val relocate: Step = if (base != null) {
             val s = exec(
-                File(dir, "koreloc"),
-                listOf("syms.txt", "0x" + base.toString(16), "kernelsu.ko", relocated.name),
+                koreloc!!,
+                listOf(syms.absolutePath, "0x" + base.toString(16), inKo.absolutePath, outKo.absolutePath),
+                dir,
                 60,
             )
             steps += s
@@ -125,16 +154,13 @@ class IqooRootRunner(private val context: Context) {
             }
         }
 
-        val ko = if (relocated.isFile && relocated.length() > 0) relocated else null
+        val ko = if (outKo.isFile && outKo.length() > 0) outKo else null
 
         // ④ 加载模块。exploit 成功后当前进程通常已经是 uid 0，
-        //    所以这里直接问内核要 insmod；失败也不影响 exploit 本身的结果。
+        //    失败也不影响 exploit 本身的结果，所以只记录日志。
         if (ko != null) {
-            val load = exec(
-                File("/system/bin/insmod"),
-                listOf(ko.absolutePath),
-                30,
-            )
+            val insmod = File("/system/bin/insmod")
+            val load = exec(insmod, listOf(ko.absolutePath), dir, 30)
             steps += load
             onStep(load)
         }
@@ -144,12 +170,12 @@ class IqooRootRunner(private val context: Context) {
             steps = steps,
             rootBase = base,
             relocatedKo = ko,
-            error = if (exploit.exitCode != 0) "exploit 返回 ${exploit.exitCode}" else null,
+            error = if (exp.exitCode != 0) "exploit 返回 ${exp.exitCode}" else null,
         )
     }
 
     /**
-     * 跑一个二进制并收完整输出。
+     * 跑一个可执行文件并收完整输出。
      *
      * exploit 会 fork 子进程，父进程可能先退出，所以超时给得比较宽，
      * 并且 stdout/stderr 合并读，避免缓冲区互锁。
@@ -157,19 +183,19 @@ class IqooRootRunner(private val context: Context) {
     private fun exec(
         bin: File,
         args: List<String>,
+        workingDir: File,
         timeoutSeconds: Long,
     ): Step {
-        if (!bin.isFile || !bin.canExecute()) {
-            return Step(bin.name, -1, "文件不存在或不可执行: ${bin.absolutePath}")
+        if (!bin.isFile) {
+            return Step(bin.name, -1, "文件不存在: ${bin.absolutePath}")
         }
         val cmd = mutableListOf(bin.absolutePath).apply { addAll(args) }
         val text = StringBuilder()
         return try {
             val process = ProcessBuilder(cmd)
-                .directory(bin.parentFile)
+                .directory(workingDir)
                 .redirectErrorStream(true)
                 .start()
-            // 读取放后台线程，主线程只等进程结束，避免管道写满死锁
             val reader = Thread {
                 runCatching {
                     BufferedReader(InputStreamReader(process.inputStream)).useLines { lines ->
@@ -198,11 +224,11 @@ class IqooRootRunner(private val context: Context) {
      * 不同版本的 exploit 打印格式不统一，这里按几种常见形态依次尝试：
      *   base=0xffff8000...
      *   kernel_base: ffff8000...
-     *   单独一行 0xffff...（16 位十六进制）
+     *   单独一个 0xffff... token
      */
     private fun findBase(output: String): Long? {
         val patterns = listOf(
-            Regex("""(?i)(?:kernel[_ ]?base|base|kbase|kaslr[_ ]?base)\s*[:=]\s*(?:0x)?([0-9a-f]{8,16})"""),
+            Regex("""(?i)(?:kernel[_ ]?base|kbase|kaslr[_ ]?base|base)\s*[:=]\s*(?:0x)?([0-9a-f]{8,16})"""),
             Regex("""0x([0-9a-f]{12,16})"""),
             Regex("""\b(ffff[0-9a-f]{8,12})\b"""),
         )
@@ -210,8 +236,8 @@ class IqooRootRunner(private val context: Context) {
             for (m in p.findAll(output)) {
                 val raw = m.groupValues.last()
                 val v = raw.toLongOrNull(16) ?: continue
-                // 内核地址必须落在 arm64 的高半区
-                if (v < 0) return v   // arm64 内核高半区地址作为 Long 是负数
+                // arm64 内核高半区地址作为 Long 是负数
+                if (v < 0) return v
             }
         }
         return null
