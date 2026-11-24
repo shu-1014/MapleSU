@@ -677,18 +677,18 @@ if __name__ == "__main__":
                 ir_build = json.loads((ir_dir / "build.json").read_text(encoding="utf-8"))
                 specs = ir_specs(report)
                 if specs is None:
-                    # Ultra 模式才用 IR spec；PD2055 等设备自带 exploit 链路不用它，
-                    # 缺 spec 不该拖垮整个 provider 构建。
+                    # Ultra 模式才用 IR spec；PD2055 等设备自带 exploit 链路不用它。
+                    # 缺 spec 不致命，但 ir.build 必须照常写进报告 —— package.py 要求
+                    # APK 必须携带内核模块，否则整个 provider 打包会被拒绝。
+                    print("MAPLESU: IR specs incomplete; continuing with an empty list", file=sys.stderr)
                     report.setdefault("ir", {})["specsMissing"] = True
-                    print("MAPLESU: IR specs incomplete; continuing without them", file=sys.stderr)
-                else:
-                    canary_path = ir_dir / "maplesu_ir-canary.ko"
-                    report["ir"] = {"build": ir_build, "specs": specs,
-                                    "canary": {"path": str(canary_path),
-                                               "sha256": sha(canary_path),
-                                               "bytes": canary_path.stat().st_size}}
-                    # Ultra's payload, packaged on every product build.
-                    exit_code = build_root_product(output, ndk, report, contract)
+                    specs = []
+                canary_path = ir_dir / "maplesu_ir-canary.ko"
+                report["ir"] = {"build": ir_build, "specs": specs,
+                                "canary": {"path": str(canary_path),
+                                           "sha256": sha(canary_path) if canary_path.is_file() else "",
+                                           "bytes": canary_path.stat().st_size if canary_path.is_file() else 0}}
+                exit_code = build_root_product(output, ndk, report, contract)
         # L3 su gate (ABI v1). Built last so a red earlier edge never spends time on
         # it; it is recorded in `report["l3"]` for every outcome, never omitted, so a
         # report or an APK can always state which su gate it carries.
