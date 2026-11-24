@@ -110,20 +110,12 @@ jobs:
             --sdk "$ANDROID_SDK_ROOT" \
             --ndk-dir "$NDK" \
             --output /tmp/providers > /tmp/pb.log 2>&1 || true
-          echo "=== PB.LOG (last 80) ==="
-          tail -80 /tmp/pb.log
+          echo "=== PB.LOG ==="
+          tail -40 /tmp/pb.log || true
+          echo "=== BUILD.LOG (compiler errors) ==="
+          tail -120 /tmp/providers/build.log 2>/dev/null || echo "no build.log"
           echo "=== BUILD.JSON ==="
-          if [ -f /tmp/providers/build.json ]; then
-            python - <<'PY'
-          import json,sys
-          d=json.load(open('/tmp/providers/build.json'))
-          print(json.dumps({k:v for k,v in d.items() if k!='inputs'}, indent=2)[:6000])
-          PY
-          else
-            echo "no build.json"
-          fi
-          echo "=== SUB LOGS ==="
-          find /tmp/providers -name '*.log' 2>/dev/null | head -5 | while read f; do echo "--- $f"; tail -30 "$f"; done || true
+          cat /tmp/providers/build.json 2>/dev/null | head -c 3000 || echo "no build.json"
       - name: Build manager
         env:
           MAPLE_RELEASE_STORE_FILE: ${{ runner.temp }}/maplesu-release.jks
