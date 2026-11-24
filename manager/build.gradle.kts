@@ -504,7 +504,9 @@ val packageMapleSuRuntime = tasks.register<PackageMapleSuRuntime>("packageMapleS
     jniDirectory.set(runtimeJni)
 }
 androidComponents.onVariants { variant ->
-    variant.sources.jniLibs?.addGeneratedSourceDirectory(packageMapleSuRuntime, PackageMapleSuRuntime::jniDirectory)
+    if (providers.gradleProperty("maplesuSkipNativePackaging").orNull != "true") {
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(packageMapleSuRuntime, PackageMapleSuRuntime::jniDirectory)
+    }
 }
 
 // --- Jailbreak provider edge -------------------------------------------------
@@ -970,10 +972,12 @@ androidComponents.onVariants { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(packageUltraInitBridge, PackageUltraInitBridge::assetsDirectory)
     }
     variant.sources.assets?.addGeneratedSourceDirectory(packagePolicyHooks, PackagePolicyHooks::assetsDirectory)
-    variant.sources.jniLibs?.addGeneratedSourceDirectory(packageJailbreakProviders,
-        PackageJailbreakProviders::jniDirectory)
-    variant.sources.assets?.addGeneratedSourceDirectory(packageJailbreakProviders,
-        PackageJailbreakProviders::assetsDirectory)
+    if (providers.gradleProperty("maplesuSkipNativePackaging").orNull != "true") {
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(packageJailbreakProviders,
+            PackageJailbreakProviders::jniDirectory)
+        variant.sources.assets?.addGeneratedSourceDirectory(packageJailbreakProviders,
+            PackageJailbreakProviders::assetsDirectory)
+    }
 }
 
 dependencies {
