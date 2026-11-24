@@ -24,6 +24,7 @@ import com.maplesu.core.ui.navigation3.Route
 import com.maplesu.core.ui.viewmodel.SettingsViewModel
 import dev.maplesu.manager.workmode.ui.WorkModeSwitchSheet
 import com.maplesu.core.R
+import com.maplesu.core.ui.screen.iqoo.IqooRootActivity
 
 @Composable
 fun SettingPager(
@@ -101,6 +102,10 @@ fun SettingPager(
         onOpenWebAdminUrl = viewModel::openWebAdminUrl,
         onOpenLiteHidden = dropUnlessResumed { navigator.push(Route.LiteHidden) },
         onOpenWebUiSelfCheck = dropUnlessResumed { navigator.push(Route.WebUiSelfCheck) },
+        onOpenIqooRoot = {
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            ctx.startActivity(android.content.Intent(ctx, IqooRootActivity::class.java))
+        },
     )
 
     when (LocalUiMode.current) {
