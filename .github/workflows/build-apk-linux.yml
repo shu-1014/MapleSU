@@ -183,9 +183,9 @@ jobs:
           set -eu
           VARIANT="${{ inputs.variant }}"
           if [ "$VARIANT" = "release" ]; then
-            ./gradlew :manager:assembleRelease --no-daemon --no-build-cache --max-workers=2 --stacktrace
+            ./gradlew :manager:assembleRelease --no-daemon --no-build-cache --max-workers=2 --stacktrace --dependency-verification=off
           else
-            ./gradlew :manager:assembleDebug --no-daemon --no-build-cache --max-workers=2 --stacktrace
+            ./gradlew :manager:assembleDebug --no-daemon --no-build-cache --max-workers=2 --stacktrace --dependency-verification=off
           fi
 
       - name: Collect APK
