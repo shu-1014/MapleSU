@@ -134,6 +134,13 @@
             </intent-filter>
         </receiver>
 
+        <!-- iQOO Neo 5 (PD2055) 专用提权入口：独立 Activity，走设备自带的 exploit 链路 -->
+        <activity
+            android:name="com.maplesu.core.ui.screen.iqoo.IqooRootActivity"
+            android:exported="false"
+            android:label="iQOO Neo 5 提权"
+            android:theme="@android:style/Theme.DeviceDefault.DayNight" />
+
         <activity
             android:name=".ui.webui.WebUIActivity"
             android:autoRemoveFromRecents="true"
