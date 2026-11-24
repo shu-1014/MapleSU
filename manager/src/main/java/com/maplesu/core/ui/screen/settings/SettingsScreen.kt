@@ -61,6 +61,8 @@ fun SettingPager(
         onPauseOrDispose { }
     }
 
+    // 提权入口需要在 Composable 上下文里取 Context，不能放在 actions 的 lambda 里
+    val iqooCtx = androidx.compose.ui.platform.LocalContext.current
     val actions = SettingsScreenActions(
         onSetCheckUpdate = viewModel::setCheckUpdate,
         onSetCheckModuleUpdate = viewModel::setCheckModuleUpdate,
@@ -103,8 +105,7 @@ fun SettingPager(
         onOpenLiteHidden = dropUnlessResumed { navigator.push(Route.LiteHidden) },
         onOpenWebUiSelfCheck = dropUnlessResumed { navigator.push(Route.WebUiSelfCheck) },
         onOpenIqooRoot = {
-            val ctx = androidx.compose.ui.platform.LocalContext.current
-            ctx.startActivity(android.content.Intent(ctx, IqooRootActivity::class.java))
+            iqooCtx.startActivity(android.content.Intent(iqooCtx, IqooRootActivity::class.java))
         },
     )
 
