@@ -93,6 +93,24 @@ jobs:
           ls -l "$KEYSTORE"
           cat manager/sign.properties
 
+      - name: Debug provider build (verbose)
+        run: |
+          set -x
+          NDK="$ANDROID_SDK_ROOT/ndk/26.1.10909125"
+          echo "SDK=$ANDROID_SDK_ROOT"
+          ls "$ANDROID_SDK_ROOT/cmake/3.22.1/bin" || true
+          ls "$NDK/toolchains/llvm/prebuilt" || true
+          which cargo rustc || true
+          cargo --version || true
+          echo "=== run build.py directly ==="
+          python jailbreak-providers/build.py \
+            --dirtyfrag-adapter --ghostlock-adapter \
+            --ko-variant android15-6.6 \
+            --sdk "$ANDROID_SDK_ROOT" \
+            --ndk-dir "$NDK" \
+            --output /tmp/providers 2>&1 | tail -60 || true
+          echo "=== output dir ==="
+          ls -la /tmp/providers 2>/dev/null || true
       - name: Build manager
         env:
           MAPLE_RELEASE_STORE_FILE: ${{ runner.temp }}/maplesu-release.jks
