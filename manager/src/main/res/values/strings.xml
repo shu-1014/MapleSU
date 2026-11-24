@@ -436,4 +436,6 @@
     <string name="install_ultra_switch_carrier">Switch carrier</string>
     <string name="install_ultra_current_carrier">Current carrier / slot</string>
     <string name="install_ultra_carrier_unknown">Unconfirmed</string>
+    <string name="iqoo_root_entry">iQOO Neo 5 提权</string>
+    <string name="iqoo_root_entry_summary">PD2055 专用，跑设备自带的 exploit 链路</string>
 </resources>
