@@ -419,6 +419,14 @@ fun SettingPagerMaterial(
                                     onClick = actions.onOpenAbout,
                                 )
                             }
+                            add {
+                                ArrowRowMaterial(
+                                    title = stringResource(R.string.iqoo_root_entry),
+                                    summary = stringResource(R.string.iqoo_root_entry_summary),
+                                    icon = Icons.Filled.Info,
+                                    onClick = actions.onOpenIqooRoot,
+                                )
+                            }
                         }
                     },
                 )
