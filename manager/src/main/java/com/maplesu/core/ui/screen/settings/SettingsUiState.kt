@@ -188,4 +188,6 @@ data class SettingsScreenActions(
     val onSetUltraModulePolicyLoad: (Boolean) -> Unit = {},
     val onSetUltraModulePolicyHide: (Boolean) -> Unit = {},
     val onSetJailbreakSelinuxHide: (Boolean) -> Unit = {},
+    /** iQOO Neo 5（PD2055）专用提权入口，独立 Activity。 */
+    val onOpenIqooRoot: () -> Unit = {},
 )
