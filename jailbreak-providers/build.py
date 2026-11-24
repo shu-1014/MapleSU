@@ -677,7 +677,10 @@ if __name__ == "__main__":
                 ir_build = json.loads((ir_dir / "build.json").read_text(encoding="utf-8"))
                 specs = ir_specs(report)
                 if specs is None:
-                    exit_code = 3
+                    # Ultra 模式才用 IR spec；PD2055 等设备自带 exploit 链路不用它，
+                    # 缺 spec 不该拖垮整个 provider 构建。
+                    report.setdefault("ir", {})["specsMissing"] = True
+                    print("MAPLESU: IR specs incomplete; continuing without them", file=sys.stderr)
                 else:
                     canary_path = ir_dir / "maplesu_ir-canary.ko"
                     report["ir"] = {"build": ir_build, "specs": specs,
