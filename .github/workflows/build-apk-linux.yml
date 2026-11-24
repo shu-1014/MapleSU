@@ -131,6 +131,25 @@ jobs:
           find "$CACHE/org.jetbrains.kotlin/kotlin-stdlib" -name '*.jar' 2>/dev/null | head -5 || echo "  (none)"
           echo "=== annotations / serialization / coroutines ==="
           find "$CACHE" \( -path '*org.jetbrains/annotations*' -o -path '*kotlinx-serialization*' -o -path '*kotlinx-coroutines-core-jvm*' \) -name '*.jar' 2>/dev/null | head -8 || true
+      - name: Build shark plants
+        run: |
+          set -eu
+          # build.py never invokes this, but package.py verifies every plant
+          # digest before it will package an APK. Compile the seven C plants
+          # with the pinned NDK 28.2 so the manifest matches what ships.
+          NDK28="$ANDROID_SDK_ROOT/ndk/28.2.13676358"
+          echo "ndk: $NDK28"
+          ls "$NDK28/toolchains/llvm/prebuilt" || true
+          python jailbreak-providers/shark/build_plants.py --ndk "$NDK28"
+          echo "=== plants ==="
+          ls -l jailbreak-providers/shark/plants/arm64-v8a/ || true
+          echo "=== manifest plants record ==="
+          python - <<'PY'
+          import json
+          d=json.load(open('jailbreak-providers/shark/manifest.json'))
+          for p in d.get('plants') or []:
+              print(' ', p['name'], p['bytes'], p['sha256'][:16])
+          PY
       - name: Debug provider build (verbose)
         run: |
           set -x
