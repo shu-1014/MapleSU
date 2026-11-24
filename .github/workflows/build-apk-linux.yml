@@ -99,6 +99,28 @@ jobs:
           ls -l "$KEYSTORE"
           cat manager/sign.properties
 
+      - name: Warm host toolchain jars
+        run: |
+          set -eu
+          # specgen/product.py looks these up via
+          #   `$GRADLE_USER_HOME/caches/modules-2/files-2.1/<g>/<a>/<v>/*/*.jar`
+          # so any one-level subdirectory works; no real sha1 layout needed.
+          CACHE="${GRADLE_USER_HOME:-$HOME/.gradle}/caches/modules-2/files-2.1"
+          fetch() {
+            g="$1"; a="$2"; v="$3"
+            d="$CACHE/$g/$a/$v/manual"
+            mkdir -p "$d"
+            curl -fsSL "https://repo1.maven.org/maven2/$g/$a/$v/$a-$v.jar" -o "$d/$a-$v.jar"
+            echo "  $a-$v.jar -> $(stat -c%s "$d/$a-$v.jar") bytes"
+          }
+          fetch org.jetbrains.kotlin kotlin-stdlib 2.4.20
+          fetch org.jetbrains annotations 13.0
+          fetch org.jetbrains.kotlinx kotlinx-serialization-json-jvm 1.11.0
+          fetch org.jetbrains.kotlinx kotlinx-serialization-core-jvm 1.11.0
+          fetch org.jetbrains.kotlin kotlin-compiler-embeddable 2.4.20
+          fetch org.jetbrains.kotlinx kotlinx-coroutines-core-jvm 1.11.0
+          echo "cache root: $CACHE"
+          ls "$CACHE/org.jetbrains.kotlin" || true
       - name: Debug provider build (verbose)
         run: |
           set -x
