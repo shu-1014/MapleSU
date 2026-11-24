@@ -44,7 +44,7 @@ def build(ndk, output):
     env.update(CC_aarch64_linux_android=str(compiler),
                AR_aarch64_linux_android=str(archive),
                CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=str(compiler),
-               CARGO_NET_OFFLINE="true",
+               CARGO_NET_OFFLINE="false",
                CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS=
                "-C force-unwind-tables=no -C link-arg=-Wl,-z,max-page-size=16384")
     if toolchain.endswith("windows-gnu"):
