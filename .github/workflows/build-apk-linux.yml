@@ -110,7 +110,7 @@ jobs:
             g="$1"; a="$2"; v="$3"
             d="$CACHE/$g/$a/$v/manual"
             mkdir -p "$d"
-            url="https://repo1.maven.org/maven2/$g/$a/$v/$a-$v.jar"
+            url="https://repo.maven.apache.org/maven2/$g/$a/$v/$a-$v.jar"
             code=$(curl -sSL -w '%{http_code}' -o "$d/$a-$v.jar" "$url" || echo 000)
             size=$(stat -c%s "$d/$a-$v.jar" 2>/dev/null || echo 0)
             if [ "$code" = "200" ] && [ "$size" -gt 1000 ]; then
