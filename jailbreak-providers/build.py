@@ -147,7 +147,9 @@ def ir_specs(report):
     specs = []
     for record_path in sorted((ROOT / "ir-loader" / "specs").glob("*.ir.spec.json")):
         record = json.loads(record_path.read_text(encoding="utf-8"))
-        spec_path = Path(record["spec"])
+        # 记录里存的是 Windows 反斜杠；POSIX 上反斜杠是普通字符，
+        # Path() 会把整串当成一个文件名，导致找不到 spec。
+        spec_path = Path(record["spec"].replace("\\", "/"))
         if not spec_path.is_absolute():
             spec_path = (ROOT.parent / spec_path).resolve()
         if not spec_path.is_file():
