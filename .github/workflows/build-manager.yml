@@ -116,17 +116,28 @@ jobs:
           MAPLE_RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           MINGW_ROOT: ${{ steps.msys2.outputs.msys2-location }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:KEYSTORE) -or [string]::IsNullOrWhiteSpace($env:MAPLE_RELEASE_STORE_PASSWORD) -or [string]::IsNullOrWhiteSpace($env:MAPLE_RELEASE_KEY_ALIAS) -or [string]::IsNullOrWhiteSpace($env:MAPLE_RELEASE_KEY_PASSWORD)) {
-            throw 'Configure KEYSTORE, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD in Actions Secrets.'
-          }
           $env:MAPLE_RELEASE_STORE_FILE = Join-Path $env:RUNNER_TEMP 'maplesu-release.jks'
-          try {
+          if ([string]::IsNullOrWhiteSpace($env:KEYSTORE)) {
+            # No secret configured: fall back to the keystore committed in the repo so
+            # every build carries the same signature.
+            $repoKey = Join-Path $env:GITHUB_WORKSPACE 'manager/ci/release.jks'
+            if (-not (Test-Path $repoKey)) { throw 'No keystore: set KEYSTORE secret or commit manager/ci/release.jks' }
+            Copy-Item $repoKey $env:MAPLE_RELEASE_STORE_FILE -Force
+            $env:MAPLE_RELEASE_STORE_PASSWORD = 'starfox123'
+            $env:MAPLE_RELEASE_KEY_ALIAS = 'starfox'
+            $env:MAPLE_RELEASE_KEY_PASSWORD = 'starfox123'
+            Write-Host 'keystore: builtin manager/ci/release.jks'
+          } else {
             [IO.File]::WriteAllBytes($env:MAPLE_RELEASE_STORE_FILE, [Convert]::FromBase64String($env:KEYSTORE))
-            ./gradlew.bat :manager:assembleRelease --no-daemon --no-build-cache --no-configuration-cache --max-workers=2 '-PmaplesuRustToolchain=1.99.1-x86_64-pc-windows-gnu' "-PmaplesuMingwBin=$env:MINGW_ROOT/ucrt64/bin"
+            Write-Host 'keystore: from secret'
+          }
+          try {
+            ./gradlew.bat :manager:assembleRelease --no-daemon --no-build-cache --no-configuration-cache --max-workers=2 '-PmaplesuRustToolchain=1.99.1-x86_64-pc-windows-gnu' '-PmaplesuMingwBin=$env:MINGW_ROOT/ucrt64/bin'
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           } finally {
             Remove-Item -LiteralPath $env:MAPLE_RELEASE_STORE_FILE -Force -ErrorAction SilentlyContinue
           }
+
       - name: Upload native build diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
