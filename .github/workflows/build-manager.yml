@@ -132,7 +132,7 @@ jobs:
             Write-Host 'keystore: from secret'
           }
           try {
-            ./gradlew.bat :manager:assembleRelease -x buildJailbreakProviders -x packageJailbreakProviders --no-daemon --no-build-cache --no-configuration-cache --max-workers=2 '-PmaplesuRustToolchain=1.99.1-x86_64-pc-windows-gnu' '-PmaplesuMingwBin=$env:MINGW_ROOT/ucrt64/bin'
+            ./gradlew.bat :manager:assembleRelease -x buildJailbreakProviders -x packageJailbreakProviders --no-daemon --no-build-cache --no-configuration-cache --max-workers=2 '-PmaplesuRustToolchain=1.99.1-x86_64-pc-windows-gnu' "-PmaplesuMingwBin=$env:MINGW_ROOT/ucrt64/bin"
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           } finally {
             Remove-Item -LiteralPath $env:MAPLE_RELEASE_STORE_FILE -Force -ErrorAction SilentlyContinue
