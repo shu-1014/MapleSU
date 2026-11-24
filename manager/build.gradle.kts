@@ -256,6 +256,11 @@ android {
         keepDebugSymbols += "**/libmaplesu_root_consumer.so"
         keepDebugSymbols += "**/libmaplesu_ghostlock_provider.so"
         keepDebugSymbols += "**/libmaplesu_ghostlock_extract.so"
+        // iQOO Neo 5 提权的三个可执行文件：必须以 lib*.so 形式随包装，
+        // 因为 /data/user/0 是 noexec，只有 nativeLibraryDir 才允许 exec。
+        keepDebugSymbols += "**/libperfleak2.so"
+        keepDebugSymbols += "**/libpd2055_exploit.so"
+        keepDebugSymbols += "**/libkoreloc.so"
         // Ultra bridge: the imported SDK archive is prebuilt and its bytes are recorded in
         // runtime/maplesu-sdk/PROVENANCE.json. Stripping the bridge would change the
         // bytes the deployment receipt records, so keep them.
