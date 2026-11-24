@@ -405,14 +405,12 @@ fun SettingPagerMiuix(
                                     onClick = actions.onOpenAbout,
                                 )
                             }
-                            add {
                                 ArrowRowMiuix(
                                     title = stringResource(R.string.iqoo_root_entry),
                                     summary = stringResource(R.string.iqoo_root_entry_summary),
                                     icon = Icons.Rounded.Info,
                                     onClick = actions.onOpenIqooRoot,
                                 )
-                            }
                         }
                     }
                     Spacer(Modifier.height(bottomInnerPadding + 12.dp))
