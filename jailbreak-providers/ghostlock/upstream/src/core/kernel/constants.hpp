@@ -4,12 +4,8 @@
 #include <cstdint>
 
 #include "kernel/offset.h"
-
-// GHOSTLOCK_PAGE_MACRO_GUARD
-// Android/Bionic headers (and some NDK sysroots) define PAGE_SIZE as a macro.
-// Without this the constexpr below expands to `unsigned long 4096 = ...`
-// and clang reports "expected unqualified-id". Windows has no such macro,
-// which is why this only breaks Linux builds.
+// GHOSTLOCK_PAGE_MACRO_GUARD: Android/NDK headers define PAGE_SIZE as a macro,
+// which turns the constexpr below into "unsigned long 4096 = ..." on Linux.
 #ifdef PAGE_SIZE
 #undef PAGE_SIZE
 #endif
