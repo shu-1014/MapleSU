@@ -99,35 +99,18 @@ jobs:
           ls -l "$KEYSTORE"
           cat manager/sign.properties
 
-      - name: Warm host toolchain jars
+      - name: Warm Gradle cache (real kotlin toolchain)
         run: |
           set -eu
-          # specgen/product.py looks these up via
-          #   `$GRADLE_USER_HOME/caches/modules-2/files-2.1/<g>/<a>/<v>/*/*.jar`
-          # so any one-level subdirectory works; no real sha1 layout needed.
+          # CI runners cannot reach Maven over plain HTTP, but Gradle can.
+          # Running `help` resolves the whole plugin/toolchain graph, which
+          # drops kotlin-stdlib / kotlin-compiler-embeddable into the cache
+          # that specgen/product.py reads.
+          ./gradlew help --no-daemon --stacktrace 2>&1 | tail -20 || true
           CACHE="${GRADLE_USER_HOME:-$HOME/.gradle}/caches/modules-2/files-2.1"
-          fetch() {
-            g="$1"; a="$2"; v="$3"
-            d="$CACHE/$g/$a/$v/manual"
-            mkdir -p "$d"
-            url="https://repo.maven.apache.org/maven2/$g/$a/$v/$a-$v.jar"
-            code=$(curl -sSL -w '%{http_code}' -o "$d/$a-$v.jar" "$url" || echo 000)
-            size=$(stat -c%s "$d/$a-$v.jar" 2>/dev/null || echo 0)
-            if [ "$code" = "200" ] && [ "$size" -gt 1000 ]; then
-              echo "  OK   $a-$v.jar  $size bytes"
-            else
-              echo "  FAIL $a-$v.jar  http=$code size=$size  $url"
-              rm -f "$d/$a-$v.jar"
-            fi
-          }
-          fetch org.jetbrains.kotlin kotlin-stdlib 2.4.20
-          fetch org.jetbrains annotations 13.0
-          fetch org.jetbrains.kotlinx kotlinx-serialization-json-jvm 1.11.0
-          fetch org.jetbrains.kotlinx kotlinx-serialization-core-jvm 1.11.0
-          fetch org.jetbrains.kotlin kotlin-compiler-embeddable 2.4.20
-          fetch org.jetbrains.kotlinx kotlinx-coroutines-core-jvm 1.11.0
-          echo "cache root: $CACHE"
-          ls "$CACHE/org.jetbrains.kotlin" || true
+          echo "kotlin artifacts in cache:"
+          ls "$CACHE/org.jetbrains.kotlin" 2>/dev/null || echo "  (none)"
+          find "$CACHE/org.jetbrains.kotlin" -name '*.jar' 2>/dev/null | head -10 || true
       - name: Debug provider build (verbose)
         run: |
           set -x
