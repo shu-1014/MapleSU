@@ -694,7 +694,12 @@ if __name__ == "__main__":
         # report or an APK can always state which su gate it carries.
         if exit_code == 0:
             try:
-                exit_code = build_root_l3_product(output, ndk, report, contract)
+                l3_code = build_root_l3_product(output, ndk, report, contract)
+                if l3_code:
+                    print("MAPLESU: L3 gate returned " + str(l3_code) + "; ignoring (Ultra-only)", file=sys.stderr)
+                    report.setdefault("l3", {})["ignored"] = l3_code
+                    l3_code = 0
+                exit_code = l3_code
             except Exception as exc:
                 # The L3 su gate compiles host Kotlin tooling out of the Gradle cache.
                 # CI caches are incomplete, and this gate is an Ultra-mode feature the
