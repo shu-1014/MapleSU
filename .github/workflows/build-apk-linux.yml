@@ -99,18 +99,38 @@ jobs:
           ls -l "$KEYSTORE"
           cat manager/sign.properties
 
-      - name: Warm Gradle cache (real kotlin toolchain)
+      - name: Warm host jars through Gradle
         run: |
           set -eu
-          # CI runners cannot reach Maven over plain HTTP, but Gradle can.
-          # Running `help` resolves the whole plugin/toolchain graph, which
-          # drops kotlin-stdlib / kotlin-compiler-embeddable into the cache
-          # that specgen/product.py reads.
-          ./gradlew help --no-daemon --stacktrace 2>&1 | tail -20 || true
+          # The runner cannot reach Maven directly (curl gets 404), but Gradle
+          # can. A detached configuration makes Gradle resolve exactly the six
+          # jars tools/specgen/specgen/product.py looks up in its own cache.
+          cat > /tmp/warm.gradle <<'GRADLE'
+          gradle.rootProject { project ->
+              project.tasks.register("warmHostJars") {
+                  doLast {
+                      def coords = [
+                          "org.jetbrains.kotlin:kotlin-stdlib:2.4.20",
+                          "org.jetbrains:annotations:13.0",
+                          "org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.11.0",
+                          "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.11.0",
+                          "org.jetbrains.kotlin:kotlin-compiler-embeddable:2.4.20",
+                          "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.11.0",
+                      ]
+                      def deps = coords.collect { project.dependencies.create(it) }
+                      def cfg = project.configurations.detachedConfiguration(deps as org.gradle.api.artifacts.Dependency[])
+                      cfg.canBeResolved = true
+                      cfg.files.each { println "WARM " + it }
+                  }
+              }
+          }
+          GRADLE
+          ./gradlew --init-script /tmp/warm.gradle warmHostJars --no-daemon 2>&1 | tail -30 || true
           CACHE="${GRADLE_USER_HOME:-$HOME/.gradle}/caches/modules-2/files-2.1"
-          echo "kotlin artifacts in cache:"
-          ls "$CACHE/org.jetbrains.kotlin" 2>/dev/null || echo "  (none)"
-          find "$CACHE/org.jetbrains.kotlin" -name '*.jar' 2>/dev/null | head -10 || true
+          echo "=== kotlin-stdlib in cache ==="
+          find "$CACHE/org.jetbrains.kotlin/kotlin-stdlib" -name '*.jar' 2>/dev/null | head -5 || echo "  (none)"
+          echo "=== annotations / serialization / coroutines ==="
+          find "$CACHE" \( -path '*org.jetbrains/annotations*' -o -path '*kotlinx-serialization*' -o -path '*kotlinx-coroutines-core-jvm*' \) -name '*.jar' 2>/dev/null | head -8 || true
       - name: Debug provider build (verbose)
         run: |
           set -x
