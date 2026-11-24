@@ -105,11 +105,15 @@ jobs:
           echo "=== run build.py directly ==="
           python jailbreak-providers/build.py \
             --dirtyfrag-adapter --ghostlock-adapter \
-            --ko-variant android15-6.6 \
+            --ko-variant minimal \
             --sdk "$ANDROID_SDK_ROOT" \
             --ndk-dir "$NDK" \
-            --output /tmp/providers 2>&1 | tail -60 || true
-          echo "=== output dir ==="
+            --output /tmp/providers 2>&1 | tail -40 || true
+          echo "=== build.json ==="
+          test -f /tmp/providers/build.json && head -c 4000 /tmp/providers/build.json || echo "no build.json"
+          echo ""
+          echo "=== build.log ==="
+          find /tmp/providers -name '*.log' -exec sh -c 'echo "--- $1"; tail -40 "$1"' _ {} \; 2>/dev/null || true
           ls -la /tmp/providers 2>/dev/null || true
       - name: Build manager
         env:
